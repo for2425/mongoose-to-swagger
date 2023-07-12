@@ -1,6 +1,4 @@
 [![NPM version][npm-image]][npm-url]
-[![Build Status][travis-image]][travis-url]
-[![Coverage Status][coveralls-image]][coveralls-url]
 
 # mongoose-to-swagger 
 
@@ -72,11 +70,7 @@ We look forward to seeing your contributions!
 
 ## License
 
-MIT © [Ben Lugavere](http://benlugavere.com/)
+MIT © [Ben Lugavere](https://benlugavere.com/)
 
 [npm-image]: https://badge.fury.io/js/mongoose-to-swagger.svg
 [npm-url]: https://npmjs.org/package/mongoose-to-swagger
-[travis-image]: https://travis-ci.org/giddyinc/mongoose-to-swagger.svg?branch=master
-[travis-url]: https://travis-ci.org/giddyinc/mongoose-to-swagger
-[coveralls-image]: https://coveralls.io/repos/giddyinc/mongoose-to-swagger/badge.svg?branch=master
-[coveralls-url]: https://coveralls.io/r/giddyinc/mongoose-to-swagger?branch=master
