@@ -3,9 +3,13 @@ import { ObjectId } from 'bson';
 
 const isString = value => typeof value === 'string';
 
-const mapMongooseTypeToSwaggerType = (type): 'string' | 'number' | 'boolean' | 'array' | 'object' | 'map' | null => {
+const mapMongooseTypeToSwaggerType = (type, customFieldMapping = {}): 'string' | 'number' | 'boolean' | 'array' | 'object' | 'map' | null => {
   if (!type) {
     return null;
+  }
+
+  if (customFieldMapping[type]) {                                                                                                                                                                                                          
+      return customFieldMapping[type].type;
   }
 
   if (type === Number || (isString(type) && type.toLowerCase() === 'number')) {
@@ -54,7 +58,7 @@ const mapMongooseTypeToSwaggerType = (type): 'string' | 'number' | 'boolean' | '
   }
 
   if (type.type != null) {
-    return mapMongooseTypeToSwaggerType(type.type);
+    return mapMongooseTypeToSwaggerType(type.type, customFieldMapping);
   }
 
   if (type.instance) {
@@ -92,7 +96,7 @@ const mapMongooseTypeToSwaggerType = (type): 'string' | 'number' | 'boolean' | '
   }
 
   if (type.$schemaType) {
-    return mapMongooseTypeToSwaggerType(type.$schemaType.tree);
+    return mapMongooseTypeToSwaggerType(type.$schemaType.tree, customFieldMapping);
   }
 
   if (type.getters && Array.isArray(type.getters) && type.path != null) {
@@ -113,13 +117,15 @@ const mapSchemaTypeToFieldSchema = ({
   value,
   props,
   omitFields,
+  customFieldMapping = {}
 }: {
   value: any;
   key?: string | null;
   props: string[];
-  omitFields: string[]
+  omitFields: string[],
+  customFieldMapping?: any
 }): Field => {
-  const swaggerType = mapMongooseTypeToSwaggerType(value);
+  const swaggerType = mapMongooseTypeToSwaggerType(value, customFieldMapping);
   const meta: any = {};
 
   for (const metaProp of props) {
@@ -132,18 +138,18 @@ const mapSchemaTypeToFieldSchema = ({
     meta.format = 'date-time';
   } else if (swaggerType === 'array') {
     const arraySchema = Array.isArray(value) ? value[0] : value.type[0];
-    const items = mapSchemaTypeToFieldSchema({ value: arraySchema || {}, props, omitFields });
+    const items = mapSchemaTypeToFieldSchema({ value: arraySchema || {}, props, omitFields, customFieldMapping });
     meta.items = items;
   } else if (swaggerType === 'object') {
     let fields: Array<Field> = [];
     if (value && value.constructor && value.constructor.name === 'Schema') {
-      fields = getFieldsFromMongooseSchema(value, { props, omitFields });
+      fields = getFieldsFromMongooseSchema(value, { props, omitFields, customFieldMapping });
     } else {
       const subSchema = value.type ? value.type : value;
       if (subSchema.obj && Object.keys(subSchema.obj).length > 0) {
-        fields = getFieldsFromMongooseSchema({ tree: subSchema.tree ? subSchema.tree : subSchema }, { props, omitFields });
+        fields = getFieldsFromMongooseSchema({ tree: subSchema.tree ? subSchema.tree : subSchema }, { props, omitFields, customFieldMapping });
       } else if (subSchema.schemaName !== 'Mixed') {
-        fields = getFieldsFromMongooseSchema({ tree: subSchema.tree ? subSchema.tree : subSchema }, { props, omitFields });
+        fields = getFieldsFromMongooseSchema({ tree: subSchema.tree ? subSchema.tree : subSchema }, { props, omitFields, customFieldMapping });
       }
     }
 
@@ -156,7 +162,7 @@ const mapSchemaTypeToFieldSchema = ({
 
     meta.properties = properties;
   } else if (swaggerType === 'map') {
-    const subSchema = mapSchemaTypeToFieldSchema({ value: value.of || {}, props, omitFields });
+    const subSchema = mapSchemaTypeToFieldSchema({ value: value.of || {}, props, omitFields, customFieldMapping });
     // swagger defines map as an `object` type
     meta.type = 'object';
     // with `additionalProperties` instead of `properties`
@@ -177,8 +183,8 @@ const mapSchemaTypeToFieldSchema = ({
 
 const getFieldsFromMongooseSchema = (schema: {
   tree: Record<string, any>;
-}, options: { props: string[], omitFields: string[], omitMongooseInternals?: boolean; }): any[] => {
-  const { props, omitFields, omitMongooseInternals = true } = options;
+}, options: { props: string[], omitFields: string[], customFieldMapping?: any, omitMongooseInternals?: boolean; }): any[] => {
+  const { props, omitFields, omitMongooseInternals = true, customFieldMapping } = options;
   const omitted = new Set([...(omitMongooseInternals ? ['__v', 'id'] : []), ...omitFields || []]);
   const tree = schema.tree;
   const keys = Object.keys(schema.tree);
@@ -192,7 +198,7 @@ const getFieldsFromMongooseSchema = (schema: {
     const value = tree[key];
 
     // swagger object
-    const field: Field = mapSchemaTypeToFieldSchema({ key, value, props, omitFields });
+    const field: Field = mapSchemaTypeToFieldSchema({ key, value, props, omitFields, customFieldMapping });
     const required: string[] = [];
 
     if (field.type === 'object') {
@@ -227,11 +233,12 @@ const getFieldsFromMongooseSchema = (schema: {
  * Entry Point
  * @param Model Mongoose Model Instance
  */
-function documentModel(Model, options: { props?: string[], omitFields?: string[], omitMongooseInternals?: boolean; } = {}): any {
+function documentModel(Model, options: { props?: string[], omitFields?: string[], omitMongooseInternals?: boolean;, customFieldMapping?: any } = {}): any {
   let {
     props = [],
     omitFields = [],
     omitMongooseInternals = true,
+    customFieldMapping
   } = options;
   props = [...defaultSupportedMetaProps, ...props];
 
@@ -252,7 +259,7 @@ function documentModel(Model, options: { props?: string[], omitFields?: string[]
   const schema = Model.schema;
 
   // get an array of deeply hydrated fields
-  const fields = getFieldsFromMongooseSchema(schema, { props, omitFields, omitMongooseInternals });
+  const fields = getFieldsFromMongooseSchema(schema, { props, omitFields, omitMongooseInternals, customFieldMapping });
 
   // root is always an object
   const obj = {
