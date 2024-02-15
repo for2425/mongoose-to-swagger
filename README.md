@@ -55,7 +55,13 @@ const options = {
     /**
      * Omit mongoose internals, omits mongoose internals from result ("__v", "id" - mongoose version field and virtual id field) (default: true)
      */
-    omitMongooseInternals: false
+    omitMongooseInternals: false,
+    /**
+      * map custom schema types to a swagger type
+      */
+    customFieldMapping: {
+      MyCustomObjectId: { type: 'string' }
+    }
 };
 
 const swaggerSchema = m2s(Cat, options);
