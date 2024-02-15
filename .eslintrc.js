@@ -1,11 +1,9 @@
 module.exports = {
-  "parser": "@typescript-eslint/parser",
   "extends": "xo-space",
   "env": {
     "mocha": true
   },
   "plugins": [
-    "typescript",
     'chai-friendly'
   ],
   "parserOptions": {
